@@ -1,0 +1,262 @@
+openapi: 3.0.3
+info:
+  title: SleepTracker API
+  version: 1.0.0
+  description: API for tracking sleep logs, stats, and recommendations. Use the token "MOCK-TOKEN" for testing.
+servers:
+  - url: http://localhost:8088
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        token:
+          type: string
+        name:
+          type: string
+    SleepLog:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        quality:
+          type: integer
+          minimum: 1
+          maximum: 10
+        reason:
+          type: string
+        interruptions:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+    SleepLogRequest:
+      type: object
+      properties:
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        quality:
+          type: integer
+          minimum: 1
+          maximum: 10
+        reason:
+          type: string
+        interruptions:
+          type: array
+          items:
+            type: string
+    Goal:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        type:
+          type: string
+          enum: [duration, consistency, quality]
+        value:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+paths:
+  /sleep:
+    post:
+      summary: Create a new sleep log
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SleepLogRequest'
+            example:
+              start_time: "2025-07-17T22:30:00Z"
+              end_time: "2025-07-18T06:30:00Z"
+              quality: 8
+              reason: "Felt rested"
+              interruptions: ["bathroom"]
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SleepLog'
+        '400':
+          description: Bad request
+    get:
+      summary: List all sleep logs for the user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of sleep logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SleepLog'
+  /sleep/stats:
+    get:
+      summary: Get sleep stats (average quality, trend)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sleep stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  average_quality:
+                    type: number
+                  trend:
+                    type: array
+                    items:
+                      type: integer
+  /sleep/recommendations:
+    get:
+      summary: Get sleep recommendations
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Recommendations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recommendation:
+                    type: string
+                  reason:
+                    type: string
+                  action:
+                    type: string
+                  source:
+                    type: string
+              example:
+                recommendation: "Try to maintain a consistent sleep time. Go to bed and wake up at the same time every day."
+                reason: "Your sleep quality is good, but your sleep time is not consistent."
+                action: "Go to bed and wake up at the same time every day."
+                source: "MockGPT" 
+  /api/goals:
+    post:
+      summary: Set a sleep goal
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [duration, consistency, quality]
+                  example: duration
+                value:
+                  type: string
+                  example: "7h"
+            example:
+              type: duration
+              value: "7h"
+      responses:
+        '201':
+          description: Goal set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goal'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: integer
+  /api/goals/progress:
+    get:
+      summary: Get progress for the current goal
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Progress for the last 7 days
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  goal:
+                    $ref: '#/components/schemas/Goal'
+                  progress:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          format: date
+                        met:
+                          type: boolean
+                  met_days:
+                    type: integer
+                  total_days:
+                    type: integer
+              example:
+                goal:
+                  id: "goal-uuid"
+                  user_id: "u1"
+                  type: duration
+                  value: "7h"
+                  created_at: "2025-07-17T12:00:00Z"
+                progress:
+                  - date: "2025-07-10"
+                    met: true
+                  - date: "2025-07-11"
+                    met: false
+                met_days: 1
+                total_days: 2
+        '404':
+          description: No goal set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: integer 
