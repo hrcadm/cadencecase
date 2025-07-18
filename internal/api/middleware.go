@@ -1,26 +1,19 @@
 package api
 
 import (
-	"net/http"
-	"strings"
-
 	"github.com/gin-gonic/gin"
-	"github.com/yourname/sleeptracker/internal"
+	"github.com/google/uuid"
 )
 
-func AuthMiddleware(storage *internal.Storage) gin.HandlerFunc {
+// RequestIDMiddleware ensures every request has a correlation/request ID
+func RequestIDMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		header := c.GetHeader("Authorization")
-		if strings.HasPrefix(header, "Bearer ") {
-			token := strings.TrimPrefix(header, "Bearer ")
-			token = strings.TrimSpace(token)
-			user, err := storage.GetUserByToken(token)
-			if err == nil {
-				c.Set("user", user)
-				c.Next()
-				return
-			}
+		reqID := c.GetHeader("X-Request-ID")
+		if reqID == "" {
+			reqID = uuid.NewString()
 		}
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.Set("request_id", reqID)
+		c.Writer.Header().Set("X-Request-ID", reqID)
+		c.Next()
 	}
 }
